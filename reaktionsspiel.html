@@ -537,7 +537,7 @@ btnStart.addEventListener("click", () => {
   gameRef.set({ phase: "ready", startTime: null });
 
   // 3. Zufällige Wartezeit zwischen 2 und 5 Sekunden
-  const wait = Math.floor(Math.random() * 3000) + 2000;
+  const wait = Math.floor(Math.random() * 10000) + 2000;
 
   setTimeout(() => {
     // jetzt Startzeit auf Server (für alle gleich)

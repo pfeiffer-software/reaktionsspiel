@@ -50,6 +50,20 @@
       box-shadow: 0 10px 25px rgba(0,0,0,0.6);
       border: 1px solid rgba(255,255,255,0.05);
     }
+    .player-tag {
+      font-size: 0.95rem;
+      margin: 0 0 4px;
+    }
+    #playerNameLabel {
+      font-weight: bold;
+      color: #f1c40f;
+    }
+    .section-title {
+      margin-top: 6px;
+      margin-bottom: 10px;
+      font-size: 1.0rem;
+      color: #ddd;
+    }
     button {
       font-size: 1.2rem;
       padding: 12px 20px;
@@ -101,10 +115,6 @@
       color: #ddd;
       min-height: 2.4em;
     }
-    #playerNameLabel {
-      font-weight: bold;
-      color: #f1c40f;
-    }
     .subline {
       font-size: 0.85rem;
       color: #aaa;
@@ -116,14 +126,17 @@
   <h1>Reaktionsspiel</h1>
 
   <div class="card">
+    <p class="player-tag">Du spielst als <span id="playerNameLabel"></span></p>
+
     <div id="joinArea">
-      <p>Du bist <span id="playerNameLabel"></span></p>
+      <p class="section-title">Beitritt</p>
       <p>Wenn du bereit bist, tippe auf <strong>Beitreten</strong>.</p>
       <button id="joinBtn">Beitreten</button>
       <p class="subline">(Bitte im Raum bleiben – das System kann manchmal etwas „trödeln“ 🙃)</p>
     </div>
 
     <div id="gameArea" style="display:none;">
+      <p class="section-title">Aktuelle Runde</p>
       <p class="info" id="statusText">Warten auf Startsignal...</p>
       <button id="pressBtn" disabled>DRÜCKEN</button>
     </div>
@@ -205,16 +218,16 @@
 
     // Button-Klick melden – mit künstlicher, zufälliger Latenz
     pressBtn.addEventListener("click", () => {
+      // Sicherheitscheck: nur wenn wirklich in RUNNING und noch nicht geklickt
       if (!playerKey || hasReacted || currentPhase !== "running") return;
 
-      // Direkt nach Klick: Button "lädt" und wirkt träge
       hasReacted = true;              // Spieler darf nur einmal
       pressBtn.disabled = true;
       pressBtn.classList.add("loading");
       pressBtn.textContent = "Senden...";
 
       // künstliche Verzögerung zwischen ~0,2 und 2 Sekunden
-      const extraDelay = Math.floor(Math.random() * 1800) + 200;
+      const extraDelay = Math.floor(Math.random() * 3800) + 200;
 
       setTimeout(() => {
         const myRef = playersRef.child(playerKey);
@@ -225,7 +238,7 @@
           pressBtn.textContent = "Gesendet!";
           statusText.textContent = "Reaktion registriert (kann etwas gedauert haben).";
         }).catch(() => {
-          // Falls es mal "schiefgeht", sieht das für die SuS wie ein Software-/Netzproblem aus
+          // Bei Fehler wirkt es wie ein „wackliges“ System
           pressBtn.classList.remove("loading");
           pressBtn.textContent = "Fehler – versuch's gleich nochmal";
           statusText.textContent = "Es gab ein Problem beim Senden. Eventuell war die Verbindung langsam.";
