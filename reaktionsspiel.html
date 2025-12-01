@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>Reaktionsspiel – Lehrer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Firebase v8 -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="firebase-config.js"></script>
+
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #111;
+      color: #f5f5f5;
+      margin: 0;
+      padding: 20px;
+    }
+    h1, h2 {
+      margin: 0 0 10px;
+    }
+    .status {
+      font-size: 1.4rem;
+      margin-bottom: 10px;
+    }
+    .status span {
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-weight: bold;
+    }
+    .status-idle span { background: #555; }
+    .status-ready span { background: #f1c40f; color: #000; }
+    .status-running span { background: #2ecc71; color: #000; }
+    .status-finished span { background: #3498db; }
+
+    .controls {
+      margin: 15px 0;
+    }
+    button {
+      font-size: 1.1rem;
+      padding: 10px 16px;
+      margin-right: 10px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+    }
+    button#btnReset {
+      background: #555;
+      color: #fff;
+    }
+    button#btnStart {
+      background: #e74c3c;
+      color: #fff;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .players, .results {
+      margin-top: 20px;
+      display: inline-block;
+      vertical-align: top;
+      min-width: 280px;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 5px 0;
+    }
+    li {
+      padding: 4px 0;
+    }
+
+    .rank-1 { color: #f1c40f; font-weight: bold; }
+    .rank-2 { color: #bdc3c7; font-weight: bold; }
+    .rank-3 { color: #cd7f32; font-weight: bold; }
+
+    .hint {
+      font-size: 0.9rem;
+      color: #ccc;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Reaktionsspiel – Lehreransicht</h1>
+  <div id="phaseStatus" class="status status-idle">
+    Status: <span>Warten...</span>
+  </div>
+
+  <div class="controls">
+    <button id="btnReset">Neue Runde vorbereiten</button>
+    <button id="btnStart">Startsignal auslösen</button>
+  </div>
+
+  <div class="hint">
+    <strong>Anleitung für SuS:</strong> Öffnet <code>player.html</code> in eurem Browser,
+    gebt euren Namen ein und wartet auf das Startsignal.
+  </div>
+
+  <div class="players">
+    <h2>Verbundene Spieler</h2>
+    <ul id="playerList"></ul>
+  </div>
+
+  <div class="results">
+    <h2>Ergebnisse der aktuellen Runde</h2>
+    <ul id="resultList"></ul>
+  </div>
+
+  <script>
+    const gameRef = db.ref("game");
+    const playersRef = db.ref("players");
+
+    let currentPhase = "idle";
+    let currentStartTime = null;
+
+    const phaseStatus = document.getElementById("phaseStatus");
+    const btnReset = document.getElementById("btnReset");
+    const btnStart = document.getElementById("btnStart");
+    const playerList = document.getElementById("playerList");
+    const resultList = document.getElementById("resultList");
+
+    function setPhaseUI(phase) {
+      currentPhase = phase;
+      phaseStatus.className = "status status-" + phase;
+      const span = phaseStatus.querySelector("span");
+
+      if (phase === "idle") {
+        span.textContent = "Warten auf neue Runde";
+        btnStart.disabled = false;
+        btnReset.disabled = false;
+      } else if (phase === "ready") {
+        span.textContent = "Bereit machen...";
+        btnStart.disabled = true;
+        btnReset.disabled = true;
+      } else if (phase === "running") {
+        span.textContent = "JETZT DRÜCKEN!";
+        btnStart.disabled = true;
+        btnReset.disabled = true;
+      } else if (phase === "finished") {
+        span.textContent = "Runde beendet";
+        btnStart.disabled = false;
+        btnReset.disabled = false;
+      }
+    }
+
+    // Game-Status beobachten
+    gameRef.on("value", snapshot => {
+      const game = snapshot.val() || {};
+      currentStartTime = game.startTime || null;
+      const phase = game.phase || "idle";
+      setPhaseUI(phase);
+      updateResults(); // neu berechnen, falls startTime sich ändert
+    });
+
+    // Spieler-Liste beobachten
+    playersRef.on("value", snapshot => {
+      playerList.innerHTML = "";
+      snapshot.forEach(child => {
+        const player = child.val();
+        const li = document.createElement("li");
+        li.textContent = player.name || child.key;
+        playerList.appendChild(li);
+      });
+      updateResults();
+    });
+
+    // Ergebnisse berechnen
+    function updateResults() {
+      resultList.innerHTML = "";
+      if (!currentStartTime) return;
+
+      playersRef.once("value").then(snapshot => {
+        const entries = [];
+        snapshot.forEach(child => {
+          const p = child.val();
+          if (p.reactedAt) {
+            const time = p.reactedAt - currentStartTime;
+            entries.push({
+              name: p.name || child.key,
+              time: time
+            });
+          }
+        });
+
+        entries.sort((a, b) => a.time - b.time);
+
+        entries.forEach((e, index) => {
+          const li = document.createElement("li");
+          let label = `${index + 1}. ${e.name} – ${e.time} ms`;
+          if (index === 0) {
+            li.classList.add("rank-1");
+            label = "🥇 " + label;
+          } else if (index === 1) {
+            li.classList.add("rank-2");
+            label = "🥈 " + label;
+          } else if (index === 2) {
+            li.classList.add("rank-3");
+            label = "🥉 " + label;
+          }
+          li.textContent = label;
+          resultList.appendChild(li);
+        });
+
+        if (entries.length > 0 && currentPhase === "running") {
+          // Sobald mindestens eine Reaktion da ist, kann man auf "finished" setzen
+          gameRef.update({ phase: "finished" });
+        }
+      });
+    }
+
+    // Neue Runde vorbereiten: Reaktionszeiten löschen, Startzeit löschen, Phase idle
+    btnReset.addEventListener("click", () => {
+      // reagiert-Werte zurücksetzen
+      playersRef.once("value").then(snapshot => {
+        snapshot.forEach(child => {
+          child.ref.update({ reactedAt: null });
+        });
+      });
+      gameRef.set({ phase: "idle", startTime: null });
+      resultList.innerHTML = "";
+    });
+
+    // Startsignal auslösen: Phase "ready" -> kurze Wartezeit -> running + Startzeit (Server)
+    btnStart.addEventListener("click", () => {
+      // Phase "ready"
+      gameRef.set({ phase: "ready", startTime: null });
+
+      // zufällige Wartezeit zwischen 2 und 5 Sekunden
+      const wait = Math.floor(Math.random() * 3000) + 2000;
+
+      setTimeout(() => {
+        // jetzt Startzeit auf Server (für alle gleich)
+        gameRef.update({
+          phase: "running",
+          startTime: serverTimestamp
+        });
+      }, wait);
+    });
+  </script>
+</body>
+</html>
