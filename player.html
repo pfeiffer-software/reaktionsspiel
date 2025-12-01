@@ -132,7 +132,6 @@
       <p class="section-title">Beitritt</p>
       <p>Wenn du bereit bist, tippe auf <strong>Beitreten</strong>.</p>
       <button id="joinBtn">Beitreten</button>
-      <p class="subline">(Bitte im Raum bleiben – das System kann manchmal etwas „trödeln“ 🙃)</p>
     </div>
 
     <div id="gameArea" style="display:none;">
@@ -236,7 +235,7 @@
         }).then(() => {
           pressBtn.classList.remove("loading");
           pressBtn.textContent = "Gesendet!";
-          statusText.textContent = "Reaktion registriert (kann etwas gedauert haben).";
+          statusText.textContent = "Reaktion registriert";
         }).catch(() => {
           // Bei Fehler wirkt es wie ein „wackliges“ System
           pressBtn.classList.remove("loading");
