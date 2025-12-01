@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>Reaktionsspiel – Spieler</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Firebase v8 (NICHT die neue Modul-Version!) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script src="firebase-config.js"></script>
+
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #111;
+      color: #f5f5f5;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+    h1 {
+      margin-bottom: 10px;
+    }
+    button {
+      font-size: 1.2rem;
+      padding: 12px 20px;
+      border-radius: 999px;
+      border: none;
+      margin-top: 12px;
+      cursor: pointer;
+      background: #2ecc71;
+      color: #000;
+      min-width: 200px;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .info {
+      margin-top: 10px;
+      font-size: 0.95rem;
+      color: #ddd;
+      min-height: 2em;
+    }
+    #playerNameLabel {
+      font-weight: bold;
+      color: #f1c40f;
+    }
+  </style>
+</head>
+<body>
+  <h1>Reaktionsspiel</h1>
+
+  <div id="joinArea">
+    <p>Du bist <span id="playerNameLabel"></span></p>
+    <p>Wenn du bereit bist, tippe auf <strong>Beitreten</strong>.</p>
+    <button id="joinBtn">Beitreten</button>
+  </div>
+
+  <div id="gameArea" style="display:none;">
+    <p class="info" id="statusText">Warten auf Startsignal...</p>
+    <button id="pressBtn" disabled>DRÜCKEN</button>
+  </div>
+
+  <script>
+    // Referenzen auf DB
+    const gameRef = db.ref("game");
+    const playersRef = db.ref("players");
+
+    const joinArea = document.getElementById("joinArea");
+    const gameArea = document.getElementById("gameArea");
+    const joinBtn = document.getElementById("joinBtn");
+    const pressBtn = document.getElementById("pressBtn");
+    const statusText = document.getElementById("statusText");
+    const nameLabel = document.getElementById("playerNameLabel");
+
+    // Zufallsname erzeugen, z.B. "Spieler-4832"
+    const randomId = Math.floor(1000 + Math.random() * 9000);
+    const playerName = "Spieler-" + randomId;
+    nameLabel.textContent = playerName;
+
+    let playerKey = null;
+    let hasReacted = false;
+    let currentPhase = "idle";
+
+    // Spieler registrieren
+    joinBtn.addEventListener("click", () => {
+      if (playerKey) return; // schon beigetreten
+
+      const newPlayerRef = playersRef.push();
+      playerKey = newPlayerRef.key;
+
+      newPlayerRef.set({
+        name: playerName,
+        joinedAt: serverTimestamp,
+        reactedAt: null
+      }).then(() => {
+        joinArea.style.display = "none";
+        gameArea.style.display = "block";
+        statusText.textContent = "Warten auf Startsignal...";
+      });
+    });
+
+    // Spielstatus beobachten
+    gameRef.on("value", snapshot => {
+      const game = snapshot.val() || {};
+      currentPhase = game.phase || "idle";
+
+      if (!playerKey) return; // noch nicht beigetreten
+
+      if (currentPhase === "idle") {
+        statusText.textContent = "Warten auf neue Runde...";
+        pressBtn.disabled = true;
+        pressBtn.textContent = "DRÜCKEN";
+        hasReacted = false;
+      } else if (currentPhase === "ready") {
+        statusText.textContent = "Bereit machen – gleich geht's los!";
+        pressBtn.disabled = true;
+        pressBtn.textContent = "DRÜCKEN";
+        hasReacted = false;
+      } else if (currentPhase === "running") {
+        if (!hasReacted) {
+          statusText.textContent = "JETZT DRÜCKEN!";
+          pressBtn.disabled = false;
+          pressBtn.textContent = "DRÜCKEN";
+        }
+      } else if (currentPhase === "finished") {
+        if (!hasReacted) {
+          statusText.textContent = "Runde beendet.";
+          pressBtn.disabled = true;
+        }
+      }
+    });
+
+    // Button-Klick melden
+    pressBtn.addEventListener("click", () => {
+      if (!playerKey || hasReacted || currentPhase !== "running") return;
+
+      const myRef = playersRef.child(playerKey);
+      myRef.update({
+        reactedAt: serverTimestamp
+      }).then(() => {
+        hasReacted = true;
+        pressBtn.disabled = true;
+        pressBtn.textContent = "Gesendet!";
+        statusText.textContent = "Reaktion registriert.";
+      });
+    });
+  </script>
+</body>
+</html>
