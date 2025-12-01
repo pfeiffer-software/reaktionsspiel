@@ -32,7 +32,7 @@
   <style>
     body {
       font-family: system-ui, sans-serif;
-      background: #111;
+      background: radial-gradient(circle at top, #333, #000);
       color: #f5f5f5;
       margin: 0;
       padding: 20px;
@@ -40,6 +40,15 @@
     }
     h1 {
       margin-bottom: 10px;
+    }
+    .card {
+      max-width: 420px;
+      margin: 20px auto 0;
+      padding: 20px;
+      background: rgba(20, 20, 20, 0.9);
+      border-radius: 16px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+      border: 1px solid rgba(255,255,255,0.05);
     }
     button {
       font-size: 1.2rem;
@@ -50,36 +59,74 @@
       cursor: pointer;
       background: #2ecc71;
       color: #000;
-      min-width: 200px;
+      min-width: 220px;
+      font-weight: 600;
+      position: relative;
+      transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.1s;
+    }
+    button:active {
+      transform: translateY(1px);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.4);
     }
     button:disabled {
       opacity: 0.5;
       cursor: not-allowed;
+      box-shadow: none;
     }
+    button.loading {
+      background: #27ae60;
+    }
+    button.loading::after {
+      content: "";
+      position: absolute;
+      right: 18px;
+      top: 50%;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 2px solid #000;
+      border-top-color: transparent;
+      transform: translateY(-50%);
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: translateY(-50%) rotate(0deg); }
+      to   { transform: translateY(-50%) rotate(360deg); }
+    }
+
     .info {
       margin-top: 10px;
       font-size: 0.95rem;
       color: #ddd;
-      min-height: 2em;
+      min-height: 2.4em;
     }
     #playerNameLabel {
       font-weight: bold;
       color: #f1c40f;
+    }
+    .subline {
+      font-size: 0.85rem;
+      color: #aaa;
+      margin-top: 4px;
     }
   </style>
 </head>
 <body>
   <h1>Reaktionsspiel</h1>
 
-  <div id="joinArea">
-    <p>Du bist <span id="playerNameLabel"></span></p>
-    <p>Wenn du bereit bist, tippe auf <strong>Beitreten</strong>.</p>
-    <button id="joinBtn">Beitreten</button>
-  </div>
+  <div class="card">
+    <div id="joinArea">
+      <p>Du bist <span id="playerNameLabel"></span></p>
+      <p>Wenn du bereit bist, tippe auf <strong>Beitreten</strong>.</p>
+      <button id="joinBtn">Beitreten</button>
+      <p class="subline">(Bitte im Raum bleiben – das System kann manchmal etwas „trödeln“ 🙃)</p>
+    </div>
 
-  <div id="gameArea" style="display:none;">
-    <p class="info" id="statusText">Warten auf Startsignal...</p>
-    <button id="pressBtn" disabled>DRÜCKEN</button>
+    <div id="gameArea" style="display:none;">
+      <p class="info" id="statusText">Warten auf Startsignal...</p>
+      <button id="pressBtn" disabled>DRÜCKEN</button>
+    </div>
   </div>
 
   <script>
@@ -99,8 +146,8 @@
     const playerName = "Spieler-" + randomId;
     nameLabel.textContent = playerName;
 
-    let playerKey   = null;
-    let hasReacted  = false;
+    let playerKey    = null;
+    let hasReacted   = false;
     let currentPhase = "idle";
 
     // Spieler registrieren
@@ -131,40 +178,59 @@
       if (currentPhase === "idle") {
         statusText.textContent = "Warten auf neue Runde...";
         pressBtn.disabled = true;
+        pressBtn.classList.remove("loading");
         pressBtn.textContent = "DRÜCKEN";
         hasReacted = false;
       } else if (currentPhase === "ready") {
         statusText.textContent = "Bereit machen – gleich geht's los!";
         pressBtn.disabled = true;
+        pressBtn.classList.remove("loading");
         pressBtn.textContent = "DRÜCKEN";
         hasReacted = false;
       } else if (currentPhase === "running") {
         if (!hasReacted) {
           statusText.textContent = "JETZT DRÜCKEN!";
           pressBtn.disabled = false;
+          pressBtn.classList.remove("loading");
           pressBtn.textContent = "DRÜCKEN";
         }
       } else if (currentPhase === "finished") {
         if (!hasReacted) {
           statusText.textContent = "Runde beendet.";
           pressBtn.disabled = true;
+          pressBtn.classList.remove("loading");
         }
       }
     });
 
-    // Button-Klick melden
+    // Button-Klick melden – mit künstlicher, zufälliger Latenz
     pressBtn.addEventListener("click", () => {
       if (!playerKey || hasReacted || currentPhase !== "running") return;
 
-      const myRef = playersRef.child(playerKey);
-      myRef.update({
-        reactedAt: serverTimestamp
-      }).then(() => {
-        hasReacted = true;
-        pressBtn.disabled = true;
-        pressBtn.textContent = "Gesendet!";
-        statusText.textContent = "Reaktion registriert.";
-      });
+      // Direkt nach Klick: Button "lädt" und wirkt träge
+      hasReacted = true;              // Spieler darf nur einmal
+      pressBtn.disabled = true;
+      pressBtn.classList.add("loading");
+      pressBtn.textContent = "Senden...";
+
+      // künstliche Verzögerung zwischen ~0,2 und 2 Sekunden
+      const extraDelay = Math.floor(Math.random() * 1800) + 200;
+
+      setTimeout(() => {
+        const myRef = playersRef.child(playerKey);
+        myRef.update({
+          reactedAt: serverTimestamp
+        }).then(() => {
+          pressBtn.classList.remove("loading");
+          pressBtn.textContent = "Gesendet!";
+          statusText.textContent = "Reaktion registriert (kann etwas gedauert haben).";
+        }).catch(() => {
+          // Falls es mal "schiefgeht", sieht das für die SuS wie ein Software-/Netzproblem aus
+          pressBtn.classList.remove("loading");
+          pressBtn.textContent = "Fehler – versuch's gleich nochmal";
+          statusText.textContent = "Es gab ein Problem beim Senden. Eventuell war die Verbindung langsam.";
+        });
+      }, extraDelay);
     });
   </script>
 </body>
