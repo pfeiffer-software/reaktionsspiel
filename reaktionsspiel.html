@@ -4,10 +4,27 @@
   <meta charset="UTF-8" />
   <title>Reaktionsspiel – Lehrer</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <!-- Firebase v8 -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    <script src="firebase-config.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+  <script>
+    // Firebase v8 Konfiguration für das Reaktionsspiel
+    var firebaseConfig = {
+      apiKey: "AIzaSyD3JBehj7s977rMz9vdfI8a_fp0AUDbsuk",
+      authDomain: "reaktionsspiel-f2257.firebaseapp.com",
+      databaseURL: "https://reaktionsspiel-f2257-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "reaktionsspiel-f2257",
+      storageBucket: "reaktionsspiel-f2257.firebasestorage.app",
+      messagingSenderId: "1039329443610",
+      appId: "1:1039329443610:web:479e463d8db6a4a46d76a3"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    var db = firebase.database();
+    var serverTimestamp = firebase.database.ServerValue.TIMESTAMP;
+  </script>
 
   <style>
     body {
@@ -112,17 +129,17 @@
   </div>
 
   <script>
-    const gameRef = db.ref("game");
+    const gameRef    = db.ref("game");
     const playersRef = db.ref("players");
 
-    let currentPhase = "idle";
+    let currentPhase    = "idle";
     let currentStartTime = null;
 
     const phaseStatus = document.getElementById("phaseStatus");
-    const btnReset = document.getElementById("btnReset");
-    const btnStart = document.getElementById("btnStart");
-    const playerList = document.getElementById("playerList");
-    const resultList = document.getElementById("resultList");
+    const btnReset    = document.getElementById("btnReset");
+    const btnStart    = document.getElementById("btnStart");
+    const playerList  = document.getElementById("playerList");
+    const resultList  = document.getElementById("resultList");
 
     function setPhaseUI(phase) {
       currentPhase = phase;
@@ -154,7 +171,7 @@
       currentStartTime = game.startTime || null;
       const phase = game.phase || "idle";
       setPhaseUI(phase);
-      updateResults(); // neu berechnen, falls startTime sich ändert
+      updateResults();
     });
 
     // Spieler-Liste beobachten
@@ -207,15 +224,13 @@
         });
 
         if (entries.length > 0 && currentPhase === "running") {
-          // Sobald mindestens eine Reaktion da ist, kann man auf "finished" setzen
           gameRef.update({ phase: "finished" });
         }
       });
     }
 
-    // Neue Runde vorbereiten: Reaktionszeiten löschen, Startzeit löschen, Phase idle
+    // Neue Runde vorbereiten
     btnReset.addEventListener("click", () => {
-      // reagiert-Werte zurücksetzen
       playersRef.once("value").then(snapshot => {
         snapshot.forEach(child => {
           child.ref.update({ reactedAt: null });
@@ -225,16 +240,13 @@
       resultList.innerHTML = "";
     });
 
-    // Startsignal auslösen: Phase "ready" -> kurze Wartezeit -> running + Startzeit (Server)
+    // Startsignal auslösen
     btnStart.addEventListener("click", () => {
-      // Phase "ready"
       gameRef.set({ phase: "ready", startTime: null });
 
-      // zufällige Wartezeit zwischen 2 und 5 Sekunden
       const wait = Math.floor(Math.random() * 3000) + 2000;
 
       setTimeout(() => {
-        // jetzt Startzeit auf Server (für alle gleich)
         gameRef.update({
           phase: "running",
           startTime: serverTimestamp

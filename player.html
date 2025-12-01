@@ -5,10 +5,29 @@
   <title>Reaktionsspiel – Spieler</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Firebase v8 (NICHT die neue Modul-Version!) -->
+  <!-- Firebase v8 -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="firebase-config.js"></script>
+
+  <script>
+    // Firebase v8 Konfiguration für das Reaktionsspiel
+    var firebaseConfig = {
+      apiKey: "AIzaSyD3JBehj7s977rMz9vdfI8a_fp0AUDbsuk",
+      authDomain: "reaktionsspiel-f2257.firebaseapp.com",
+      databaseURL: "https://reaktionsspiel-f2257-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "reaktionsspiel-f2257",
+      storageBucket: "reaktionsspiel-f2257.firebasestorage.app",
+      messagingSenderId: "1039329443610",
+      appId: "1:1039329443610:web:479e463d8db6a4a46d76a3"
+    };
+
+    // Firebase initialisieren
+    firebase.initializeApp(firebaseConfig);
+
+    // Kurz-Handles für Realtime Database
+    var db = firebase.database();
+    var serverTimestamp = firebase.database.ServerValue.TIMESTAMP;
+  </script>
 
   <style>
     body {
@@ -68,20 +87,20 @@
     const gameRef = db.ref("game");
     const playersRef = db.ref("players");
 
-    const joinArea = document.getElementById("joinArea");
-    const gameArea = document.getElementById("gameArea");
-    const joinBtn = document.getElementById("joinBtn");
-    const pressBtn = document.getElementById("pressBtn");
+    const joinArea   = document.getElementById("joinArea");
+    const gameArea   = document.getElementById("gameArea");
+    const joinBtn    = document.getElementById("joinBtn");
+    const pressBtn   = document.getElementById("pressBtn");
     const statusText = document.getElementById("statusText");
-    const nameLabel = document.getElementById("playerNameLabel");
+    const nameLabel  = document.getElementById("playerNameLabel");
 
     // Zufallsname erzeugen, z.B. "Spieler-4832"
-    const randomId = Math.floor(1000 + Math.random() * 9000);
+    const randomId   = Math.floor(1000 + Math.random() * 9000);
     const playerName = "Spieler-" + randomId;
     nameLabel.textContent = playerName;
 
-    let playerKey = null;
-    let hasReacted = false;
+    let playerKey   = null;
+    let hasReacted  = false;
     let currentPhase = "idle";
 
     // Spieler registrieren
